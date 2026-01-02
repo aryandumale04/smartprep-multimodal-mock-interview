@@ -12,6 +12,7 @@ const ProfileInfoCard = () => {
         navigate("/");
 
     }; 
+    
   return (
      user && (<div className='flex items-center'>
         <img src={user.profileImageUrl} alt="User-Profile-Image"
