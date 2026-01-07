@@ -205,13 +205,13 @@ cd frontend
 npm install
 npm run dev
 ```
-
+```md
 ### 4️⃣ Access the App
-```bash
+
 
 Frontend: http://localhost:5173
 
 Backend API: http://localhost:8000
-```
+
 
 Make sure the backend is running before using the app.
