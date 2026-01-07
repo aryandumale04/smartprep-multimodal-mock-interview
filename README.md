@@ -1,4 +1,4 @@
-# SmartPrep – AI-Powered Interview Preparation Platform
+# SmartPrep : AI-Powered Interview Preparation Platform
 
 SmartPrep is a full-stack **MERN-based interview preparation platform** that helps users prepare for interviews across **any role or domain** using AI-generated questions, answers, and on-demand concept explanations.
 
