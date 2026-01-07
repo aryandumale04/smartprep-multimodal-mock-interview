@@ -145,6 +145,9 @@ const generateConceptExplanation = async (req, res) => {
       .trim();
 
     const data = JSON.parse(cleanedText);
+    if (data && typeof data.explanation !== "string") {
+      data.explanation = JSON.stringify(data.explanation, null, 2);
+    }
     return res.status(200).json(data);
 
   } catch (error) {
