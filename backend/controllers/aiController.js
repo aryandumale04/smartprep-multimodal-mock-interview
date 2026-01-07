@@ -53,10 +53,12 @@ const generateInterviewQuestions = async (req, res) => {
     const safeExperience = experience.toString().slice(0, LIMITS.EXPERIENCE_CHARS);
 
     const safeTopics = Array.isArray(topicsToFocus)
-      ? topicsToFocus
-          .slice(0, LIMITS.MAX_TOPICS)
-          .map(t => t.slice(0, LIMITS.TOPIC_CHARS))
-      : [];
+  ? topicsToFocus
+      .filter(t => typeof t === "string" && t.trim().length > 0)
+      .slice(0, LIMITS.MAX_TOPICS)
+      .map(t => t.slice(0, LIMITS.TOPIC_CHARS))
+  : [];
+
 
     const safeDescription = description
       ? description.slice(0, LIMITS.DESCRIPTION_CHARS)
@@ -91,6 +93,7 @@ const generateInterviewQuestions = async (req, res) => {
     };
 
     const response = await callAIWithRetry(payload, headers);
+    
 
     const rawText = response.data.choices[0].message.content;
     const cleanedText = rawText
@@ -111,23 +114,28 @@ const generateInterviewQuestions = async (req, res) => {
 
 //@route POST /api/ai/generate-explanation
 //@route POST /api/ai/generate-explanation
+//@route POST /api/ai/generate-explanation
 const generateConceptExplanation = async (req, res) => {
   try {
     const { question, answer } = req.body;
 
-    if (!question || !answer) {
-      return res.status(400).json({ message: "Missing question or answer" });
+    if (
+      typeof question !== "string" ||
+      typeof answer !== "string" ||
+      !question.trim() ||
+      !answer.trim()
+    ) {
+      return res.status(400).json({ message: "Invalid question or answer" });
     }
 
-    let prompt = conceptExplainPrompt(question, answer);
+    const safeQuestion = question.slice(0, 1000);
+    const safeAnswer = answer.slice(0, 3000);
 
-    if (prompt.length > LIMITS.MAX_PROMPT_CHARS) {
-      prompt = prompt.slice(0, LIMITS.MAX_PROMPT_CHARS);
-    }
+    const prompt = conceptExplainPrompt(safeQuestion, safeAnswer);
 
     const payload = {
       model: "openai/gpt-3.5-turbo",
-      temperature: 0.5, // LOWERED to reduce creative drift
+      temperature: 0.6,
       messages: [{ role: "user", content: prompt }]
     };
 
@@ -138,24 +146,46 @@ const generateConceptExplanation = async (req, res) => {
 
     const response = await callAIWithRetry(payload, headers);
 
-    const rawText = response.data.choices[0].message.content;
-    const cleanedText = rawText
-      .replace(/^```json\s*/i, "")
-      .replace(/```$/i, "")
-      .trim();
+    let raw = response.data.choices[0].message.content || "";
 
-    const data = JSON.parse(cleanedText);
-    if (data && typeof data.explanation !== "string") {
-      data.explanation = JSON.stringify(data.explanation, null, 2);
+    // Remove markdown fences if present
+    raw = raw.replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+
+    let parsed;
+
+    try {
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      console.error("EXPLANATION AI JSON PARSE FAILED:", err.message);
+
+      // ✅ SAFE FALLBACK — NEVER CRASH
+      return res.status(200).json({
+        title: "Concept Explanation",
+        explanation: raw
+      });
     }
-    return res.status(200).json(data);
+
+    // Ensure explanation is always a string
+    if (typeof parsed.explanation !== "string") {
+      parsed.explanation = JSON.stringify(parsed.explanation, null, 2);
+    }
+
+    if (!parsed.title) {
+      parsed.title = "Concept Explanation";
+    }
+
+    return res.status(200).json(parsed);
 
   } catch (error) {
+    console.error("EXPLANATION AI ERROR:", error.message);
     return res.status(500).json({
       message: "AI service temporarily unavailable."
     });
   }
 };
+
+
+
 
 
 module.exports = {
