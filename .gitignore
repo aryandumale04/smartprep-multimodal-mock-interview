@@ -1,4 +1,6 @@
+# =========================
 # Node.js
+# =========================
 node_modules/
 npm-debug.log
 yarn-error.log
@@ -26,3 +28,39 @@ uploads/
 .DS_Store
 .vscode/
 .idea/
+
+
+# =========================
+# Python / ML Service
+# =========================
+# Virtual environments
+venv/
+.venv/
+ml-service/venv/
+ml-service/.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+
+# Local ML artifacts / downloads
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.pkl
+*.joblib
+
+# Whisper / HF caches (heavy)
+.cache/
+huggingface/
+hf_cache/
+whisper_cache/
+ml-service/.cache/
+
+# OS junk
+Thumbs.db
