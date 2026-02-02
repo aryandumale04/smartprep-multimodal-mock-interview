@@ -1,6 +1,6 @@
 import moment from 'moment';
-import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from "framer-motion";
 import { LuCircleAlert, LuListCollapse } from 'react-icons/lu';
 import SpinnerLoader from '../../components/Loader/SpinnerLoader';
@@ -13,9 +13,11 @@ import QuestionCard from "../../components/Cards/QuestionCard";
 import AIResponsePreview from './components/AIResponsePreview';
 import Drawer from '../../components/Drawer';
 import SkeletonLoader from '../../components/Loader/SkeletonLoader';
+import Modal from '../../components/Modal';
 
 const InterviewPrep = () => {
   const { sessionId } = useParams();
+  const navigate = useNavigate();
 
   const [sessionData, setSessionData] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
@@ -26,7 +28,9 @@ const InterviewPrep = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdateLoader, setIsUpdateLoader] = useState(false);
 
-  //Fetch Session data by session id
+  const [openMockIntroModal, setOpenMockIntroModal] = useState(false);
+
+  // Fetch Session data
   const fetchSessionDetailsById = async () => {
     try {
       const response = await axiosInstance.get(
@@ -40,7 +44,7 @@ const InterviewPrep = () => {
     }
   };
 
-  //Generate Concept Explanation
+  // Generate Concept Explanation
   const generateConceptExplanation = async (question, answer) => {
     try {
       setErrorMsg("");
@@ -56,7 +60,6 @@ const InterviewPrep = () => {
       if (response.data) {
         setExplanation(response.data);
       }
-
     } catch (error) {
       setErrorMsg("Failed to generate explanation, Try again later");
     } finally {
@@ -64,13 +67,12 @@ const InterviewPrep = () => {
     }
   };
 
-  //Pin Question
+  // Pin Question
   const toggleQuestionPinStatus = async (questionId) => {
     try {
       const response = await axiosInstance.post(
         API_PATHS.QUESTION.PIN(questionId)
       );
-
       if (response.data && response.data.question) {
         fetchSessionDetailsById();
       }
@@ -79,7 +81,7 @@ const InterviewPrep = () => {
     }
   };
 
-  //Add more questions to a session
+  // Load more questions
   const uploadMoreQuestions = async () => {
     try {
       setIsUpdateLoader(true);
@@ -99,11 +101,11 @@ const InterviewPrep = () => {
 
       const generatedQuestions = Array.isArray(aiResponse.data)
         ? aiResponse.data.filter(
-          q =>
-            q &&
-            typeof q.question === "string" &&
-            typeof q.answer === "string"
-        )
+            q =>
+              q &&
+              typeof q.question === "string" &&
+              typeof q.answer === "string"
+          )
         : [];
 
       if (!generatedQuestions.length) {
@@ -137,97 +139,110 @@ const InterviewPrep = () => {
     if (sessionId) {
       fetchSessionDetailsById();
     }
-    return () => { };
   }, []);
 
   return (
     <DashboardLayout>
-     <RoleInfoHeader
-  isDrawerOpen={openLeanMoreDrawer}
-  role={sessionData?.role || ""}
-  topicToFocus={sessionData?.topicToFocus || ""}
-  experience={sessionData?.experience || "-"}
-  questions={sessionData?.questions?.length || "-"}
-  description={sessionData?.description || ""}
-  lastUpdated={
-    sessionData?.updatedAt
-      ? moment(sessionData.updatedAt).format("Do MMM YYYY")
-      : ""
-  }
-/>
-
+      <RoleInfoHeader
+        isDrawerOpen={openLeanMoreDrawer}
+        role={sessionData?.role || ""}
+        topicToFocus={sessionData?.topicToFocus || ""}
+        experience={sessionData?.experience || "-"}
+        questions={sessionData?.questions?.length || "-"}
+        description={sessionData?.description || ""}
+        lastUpdated={
+          sessionData?.updatedAt
+            ? moment(sessionData.updatedAt).format("Do MMM YYYY")
+            : ""
+        }
+      />
 
       <div className='container mx-auto pt-4 pb-4 px-4'>
-        {/* ✅ heading now aligned with centered content */}
         <div className='grid grid-cols-12 gap-4 mt-5 mb-10'>
           <div
-            className={`
-              col-span-12
-              ${openLeanMoreDrawer
-  ? "md:col-span-6 md:col-start-2"
-  : "md:col-span-10 md:col-start-2"
-}
-
-            `}
+            className={`col-span-12 ${
+              openLeanMoreDrawer
+                ? "md:col-span-6 md:col-start-2"
+                : "md:col-span-10 md:col-start-2"
+            }`}
           >
-            <h2 className='text-lg font-semibold text-black mb-4'>
-              Interview Q & A
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className='text-lg font-semibold text-black'>
+                Interview Q & A
+              </h2>
+
+              <button
+                onClick={() => setOpenMockIntroModal(true)}
+                className="text-sm font-medium bg-blue-600 text-white px-4 py-2 rounded"
+              >
+                Try Mock Interview
+              </button>
+            </div>
 
             <AnimatePresence>
-              {sessionData?.questions?.map((data, index) => {
-                return (
-                  <motion.div
-                    key={data._id || index}
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{
-                      duration: 0.4,
-                      type: "spring",
-                      stiffness: 100,
-                      delay: index * 0.1,
-                      damping: 15,
-                    }}
-                    layout
-                    layoutId={`question-${data._id || index}`}
-                  >
-                    <>
-                      <QuestionCard
-                        question={data?.question}
-                        answer={data?.answer}
-                        onLearnMore={() =>
-                          generateConceptExplanation(data.question, data.answer)
-                        }
-                        isPinned={data?.isPinned}
-                        onTogglePin={() => toggleQuestionPinStatus(data._id)}
-                      />
+              {sessionData?.questions?.map((data, index) => (
+                <motion.div
+                  key={data._id || index}
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <QuestionCard
+                    question={data?.question}
+                    answer={data?.answer}
+                    onLearnMore={() =>
+                      generateConceptExplanation(data.question, data.answer)
+                    }
+                    isPinned={data?.isPinned}
+                    onTogglePin={() => toggleQuestionPinStatus(data._id)}
+                  />
 
-                      {!isLoading &&
-                        sessionData?.questions?.length == index + 1 && (
-                          <div className='flex items-center justify-center mt-5'>
-                            <button
-                              className='flex items-center gap-3 text-sm text-white font-medium bg-black px-5 py-2 mr-2 rounded text-nowrap cursor-pointer'
-                              disabled={isLoading || isUpdateLoader}
-                              onClick={uploadMoreQuestions}
-                            >
-                              {isUpdateLoader ? (
-                                <SpinnerLoader />
-                              ) : (
-                                <LuListCollapse className='text-lg' />
-                              )}{" "}
-                              Load More
-                            </button>
-                          </div>
-                        )
-                      }
-                    </>
-                  </motion.div>
-                );
-              })}
+                  {!isLoading &&
+                    sessionData?.questions?.length === index + 1 && (
+                      <div className='flex items-center justify-center mt-5'>
+                        <button
+                          className='flex items-center gap-3 text-sm text-white font-medium bg-black px-5 py-2 rounded'
+                          disabled={isUpdateLoader}
+                          onClick={uploadMoreQuestions}
+                        >
+                          {isUpdateLoader ? <SpinnerLoader /> : <LuListCollapse />}
+                          Load More
+                        </button>
+                      </div>
+                    )}
+                </motion.div>
+              ))}
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Mock Interview Intro Modal */}
+        <Modal
+          isOpen={openMockIntroModal}
+          onClose={() => setOpenMockIntroModal(false)}
+          title="Mock Interview Instructions"
+        >
+          <div className="p-6 text-sm text-gray-700 space-y-4
+                          w-[90vw] max-w-xl max-h-[70vh] overflow-y-auto">
+            <p>• This will simulate a real interview.</p>
+            <p>• You cannot pause or retry questions.</p>
+            <p>• Evaluation will be shown only at the end.</p>
+            <p>• Please ensure a quiet environment.</p>
+
+            <div className="flex justify-end pt-6">
+              <button
+                onClick={() => {
+                  setOpenMockIntroModal(false);
+                  navigate(`/interview-prep/${sessionId}/mock`);
+                }}
+                className="bg-black text-white px-5 py-2 rounded text-sm"
+              >
+                Start Interview
+              </button>
+            </div>
+          </div>
+        </Modal>
 
         <Drawer
           isOpen={openLeanMoreDrawer}
@@ -239,16 +254,14 @@ const InterviewPrep = () => {
               <LuCircleAlert className='mt-1' />{errorMsg}
             </p>
           )}
-
           {isLoading && <SkeletonLoader />}
-
           {!isLoading && explanation && (
             <AIResponsePreview content={explanation?.explanation} />
           )}
         </Drawer>
       </div>
     </DashboardLayout>
-  )
-}
+  );
+};
 
-export default InterviewPrep
+export default InterviewPrep;
